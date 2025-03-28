@@ -17,8 +17,6 @@ os.makedirs(OPERADORAS_DIR, exist_ok=True)
 current_year = datetime.now().year
 anos_relevantes = [str(current_year - i) for i in range(3)]
 
-curl -u "leorosembauer" https://api.github.com/user/repos -d '{"name":"MEU_REPOSITORIO"}'
-
 
 
 def obter_links_pasta(url):
