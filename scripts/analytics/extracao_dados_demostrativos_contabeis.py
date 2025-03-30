@@ -4,19 +4,16 @@ import psycopg2
 import pandas as pd
 from dotenv import load_dotenv
 
-# Carregar variáveis do ambiente
 load_dotenv()
 
-# Configurações do banco de dados
 DB_NAME = os.getenv("DB_NAME", "ans_data")
 DB_USER = os.getenv("DB_USER", "ans_user")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "123456")
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "5432")
 
-# Caminhos das pastas
-PASTA_ZIP = "/home/leonidas/Área de Trabalho/intuitive/DataBase/scripts_download_processamento/data/demonstracoes_contabeis"
-PASTA_EXTRAIDA = "/home/leonidas/Área de Trabalho/intuitive/DataBase/scripts/analytics/extracao_dados_demonstrativos_contabeis/temp"
+PASTA_ZIP = "../arquivos/demonstracoes_contabeis"
+PASTA_EXTRAIDA = "../arquivos/demonstracoes_contabeis/temp"
 LOG_FILE = "erros_importacao.log"
 
 # Criar pasta de extração se não existir
@@ -38,7 +35,6 @@ def conectar_banco():
         print(f"❌ Erro ao conectar ao banco: {e}")
         return None
 
-# Extrair arquivos ZIP
 def extrair_arquivos_zip(pasta_zip, pasta_destino):
     arquivos_extraidos = []
     for arquivo in os.listdir(pasta_zip):
@@ -54,7 +50,6 @@ def extrair_arquivos_zip(pasta_zip, pasta_destino):
 
     return arquivos_extraidos
 
-# Criar tabela com base no CSV
 def criar_tabela(conn, df, tabela_destino):
     colunas = df.columns
     colunas_definicoes = [f'"{coluna}" TEXT' for coluna in colunas]
@@ -70,7 +65,6 @@ def criar_tabela(conn, df, tabela_destino):
         print(f"❌ Erro ao criar a tabela: {e}")
         conn.rollback()
 
-# Processar arquivos CSV e inserir no banco
 def processar_arquivos_csv(pasta_csv, tabela_destino, delimiter=";"):
     arquivos_csv = [f for f in os.listdir(pasta_csv) if f.endswith(".csv")]
 
@@ -98,16 +92,12 @@ def processar_arquivos_csv(pasta_csv, tabela_destino, delimiter=";"):
                 except UnicodeDecodeError:
                     continue
 
-            # Remover espaços nos nomes das colunas
             df.columns = [col.strip().lower() for col in df.columns]
 
-            # Criar tabela com base no CSV
             criar_tabela(conn, df, tabela_destino)
 
-            # Substituir valores NaN por None
             df = df.where(pd.notna(df), None)
 
-            # Inserir dados no banco
             inserir_dados(cursor, conn, df, tabela_destino)
 
         except Exception as e:
@@ -121,7 +111,6 @@ def processar_arquivos_csv(pasta_csv, tabela_destino, delimiter=";"):
     cursor.close()
     conn.close()
 
-# Inserir dados no banco
 def inserir_dados(cursor, conn, df, tabela_destino):
     colunas = ", ".join(df.columns)
     valores = ", ".join(["%s"] * len(df.columns))
@@ -152,13 +141,11 @@ def inserir_dados(cursor, conn, df, tabela_destino):
             with open(LOG_FILE, "a") as log:
                 log.write(f"Linha {i + 1}: {e}\n")
 
-# Executar extração e importação
 if __name__ == "__main__":
     arquivos_extraidos = extrair_arquivos_zip(PASTA_ZIP, PASTA_EXTRAIDA)
     if arquivos_extraidos:
         processar_arquivos_csv(PASTA_EXTRAIDA, "tb_demonstracoes_contabeis")
 
-    # Opcional: Remover arquivos extraídos após processamento
     for arquivo in os.listdir(PASTA_EXTRAIDA):
         caminho_arquivo = os.path.join(PASTA_EXTRAIDA, arquivo)
         os.remove(caminho_arquivo)

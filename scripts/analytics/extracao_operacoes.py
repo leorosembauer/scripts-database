@@ -14,7 +14,7 @@ DB_HOST = "localhost"
 DB_PORT = 5432
 
 # Pastas onde os arquivos CSV estão localizados
-PASTA_OPERADORAS = "/home/leonidas/Área de Trabalho/intuitive/DataBase/scripts_download_processamento/data/operadoras_ativas"
+PASTA_OPERADORAS = "../arquivos/operadoras_ativas"
 
 # Conectar ao banco de dados
 def conectar_banco():

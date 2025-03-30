@@ -1,4 +1,4 @@
-#Dados dos ultimos 3 meses
+-- Dados dos ultimos 3 meses
 SELECT
     dc.reg_ans AS operadora,
     COALESCE(op.cnpj, 'NÃO INFORMADO') AS cnpj,
@@ -19,7 +19,7 @@ ORDER BY total_despesa DESC
 LIMIT 10;
 
 
-#Dados do ultimo trimestre lancado
+-- Dados do ultimo trimestre lancado
 WITH TrimestreAtual AS (
     SELECT
         EXTRACT(YEAR FROM CURRENT_DATE) AS ano_atual,
