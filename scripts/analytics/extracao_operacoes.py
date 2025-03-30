@@ -32,6 +32,35 @@ def conectar_banco():
         print(f"❌ Erro ao conectar ao banco: {e}")
         return None
 
+# Criar tabela com base no CSV
+def criar_tabela(conn, df, tabela_destino):
+    colunas = df.columns
+    colunas_definicoes = [f'"{coluna}" TEXT' for coluna in colunas]
+    colunas_definicoes_str = ", ".join(colunas_definicoes)
+    create_table_query = f'CREATE TABLE IF NOT EXISTS {tabela_destino} (id SERIAL PRIMARY KEY, {colunas_definicoes_str});'
+
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(create_table_query)
+        conn.commit()
+        print(f"✅ Tabela {tabela_destino} criada com sucesso!")
+    except Exception as e:
+        print(f"❌ Erro ao criar a tabela: {e}")
+        conn.rollback()
+
+# Adicionar colunas que não existem na tabela
+def adicionar_colunas(conn, df, tabela_destino):
+    colunas = df.columns
+    for coluna in colunas:
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(f'ALTER TABLE {tabela_destino} ADD COLUMN IF NOT EXISTS "{coluna}" TEXT;')
+            conn.commit()
+            print(f"✅ Coluna {coluna} verificada/adicionada com sucesso!")
+        except Exception as e:
+            print(f"❌ Erro ao adicionar a coluna {coluna}: {e}")
+            conn.rollback()
+
 # Processar arquivos CSV
 def processar_pasta(caminho_pasta, tabela_destino, delimiter=";"):
     if not os.path.exists(caminho_pasta):
@@ -57,8 +86,14 @@ def processar_pasta(caminho_pasta, tabela_destino, delimiter=";"):
         try:
             df = pd.read_csv(caminho_arquivo, delimiter=delimiter, encoding="utf-8")
 
-            # Remover espaços extras dos nomes das colunas
-            df.columns = [col.strip() for col in df.columns]
+            # Remover espaços extras e converter nomes das colunas para minúsculas
+            df.columns = [col.strip().lower() for col in df.columns]
+
+            # Criar tabela com base no CSV
+            criar_tabela(conn, df, tabela_destino)
+
+            # Adicionar colunas que não existem na tabela
+            adicionar_colunas(conn, df, tabela_destino)
 
             # Substituir valores NaN por None
             df = df.where(pd.notna(df), None)
