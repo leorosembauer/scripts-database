@@ -54,6 +54,22 @@ def extrair_arquivos_zip(pasta_zip, pasta_destino):
 
     return arquivos_extraidos
 
+# Criar tabela com base no CSV
+def criar_tabela(conn, df, tabela_destino):
+    colunas = df.columns
+    colunas_definicoes = [f'"{coluna}" TEXT' for coluna in colunas]
+    colunas_definicoes_str = ", ".join(colunas_definicoes)
+    create_table_query = f'CREATE TABLE IF NOT EXISTS {tabela_destino} ({colunas_definicoes_str});'
+
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(create_table_query)
+        conn.commit()
+        print(f"✅ Tabela {tabela_destino} criada com sucesso!")
+    except Exception as e:
+        print(f"❌ Erro ao criar a tabela: {e}")
+        conn.rollback()
+
 # Processar arquivos CSV e inserir no banco
 def processar_arquivos_csv(pasta_csv, tabela_destino, delimiter=";"):
     arquivos_csv = [f for f in os.listdir(pasta_csv) if f.endswith(".csv")]
@@ -77,7 +93,7 @@ def processar_arquivos_csv(pasta_csv, tabela_destino, delimiter=";"):
             encodings = ["utf-8", "latin1", "ISO-8859-1"]
             for enc in encodings:
                 try:
-                    df = pd.read_csv(caminho_arquivo, delimiter=delimiter, encoding=enc, dtype={"CD_CONTA_CONTABIL": str})
+                    df = pd.read_csv(caminho_arquivo, delimiter=delimiter, encoding=enc)
                     break  # Sai do loop se a leitura for bem-sucedida
                 except UnicodeDecodeError:
                     continue
@@ -85,21 +101,11 @@ def processar_arquivos_csv(pasta_csv, tabela_destino, delimiter=";"):
             # Remover espaços nos nomes das colunas
             df.columns = [col.strip().lower() for col in df.columns]
 
-            # Adicionar data padrão se não existir no CSV
-            if "data" not in df.columns:
-                df["data"] = pd.to_datetime("today").date()  # Usa a data do dia
-
-            # Garantir que CD_CONTA_CONTABIL esteja no formato correto
-            df["cd_conta_contabil"] = df["cd_conta_contabil"].astype(str)
+            # Criar tabela com base no CSV
+            criar_tabela(conn, df, tabela_destino)
 
             # Substituir valores NaN por None
             df = df.where(pd.notna(df), None)
-
-            # Substituir vírgulas por pontos nas colunas numéricas
-            colunas_numericas = ["vl_saldo_inicial", "vl_saldo_final"]
-            for coluna in colunas_numericas:
-                if coluna in df.columns:
-                    df[coluna] = df[coluna].str.replace(",", ".").astype(float)
 
             # Inserir dados no banco
             inserir_dados(cursor, conn, df, tabela_destino)
@@ -120,7 +126,7 @@ def inserir_dados(cursor, conn, df, tabela_destino):
     colunas = ", ".join(df.columns)
     valores = ", ".join(["%s"] * len(df.columns))
     query = f"""
-        INSERT INTO {tabela_destino} ({colunas}) 
+        INSERT INTO {tabela_destino} ({colunas})
         VALUES ({valores})
         ON CONFLICT DO NOTHING;
     """
